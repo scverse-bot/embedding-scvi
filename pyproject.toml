@@ -19,7 +19,7 @@ urls.Documentation = "https://embedding-scvi.readthedocs.io/"
 urls.Source = "https://github.com/YosefLab/embedding-scvi"
 urls.Home-page = "https://github.com/YosefLab/embedding-scvi"
 dependencies = [
-    "anndata",
+    "scvi-tools>=1.0.0",
     # for debug logging (referenced from the issue template)
     "session-info"
 ]
