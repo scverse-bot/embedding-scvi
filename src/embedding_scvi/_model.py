@@ -216,6 +216,7 @@ class EmbeddingSCVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
         )
 
+    @torch.no_grad()
     def _initialize_embeddings(
         self,
         adata: anndata.AnnData,
