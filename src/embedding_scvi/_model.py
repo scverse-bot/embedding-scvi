@@ -17,7 +17,7 @@ from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.model.base._archesmixin import _get_loaded_data
 from scvi.model.base._utils import _initialize_model
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import setup_anndata_dsp, track
 
 from ._components import ExtendableEmbedding
 from ._fields import ExtendableCategoricalJointObsField
@@ -242,7 +242,12 @@ class EmbeddingSCVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             losses_new_cats = torch.zeros((n_new_cats, n_old_cats)).to(self.module.device)
             losses_n_obs = torch.zeros((n_new_cats, n_old_cats), dtype=torch.int).to(self.module.device)
 
-            for tensors in dataloader:
+            for tensors in track(
+                dataloader,
+                style="tqdm",
+                total=len(dataloader),
+                description=f"Transferring embeddings for {key}",
+            ):
                 X = tensors[REGISTRY_KEYS.X_KEY]  # (n_obs, n_vars)
                 covariates = tensors[REGISTRY_KEYS.CAT_COVS_KEY][:, [i]]  # (n_obs, 1)
                 counterfactuals = torch.arange(n_old_cats).view(-1, 1).repeat(X.shape[0], 1)  # (n_obs * n_old_cats,)
