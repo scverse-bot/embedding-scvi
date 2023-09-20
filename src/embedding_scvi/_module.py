@@ -12,7 +12,7 @@ from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBi
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from torch import nn
 
-from ._components import ExtendableEmbeddingList, MLPMultiOutput
+from ._components import ExtendableEmbeddingList
 from ._constants import TENSORS_KEYS
 
 
@@ -53,17 +53,14 @@ class EmbeddingVAE(BaseModuleClass):
         self.decoder_kwargs = decoder_kwargs or {}
 
         if likelihood == "zinb":
-            decoder_n_out_params = 3
             # scale, r, dropout
-            decoder_param_activations = ["softmax", None, None]
+            pass
         elif likelihood == "nb":
-            decoder_n_out_params = 3
             # mu, theta, scale
-            decoder_param_activations = [None, None, "softplus"]
+            pass
         elif likelihood == "poisson":
-            decoder_n_out_params = 2
             # mu, scale
-            decoder_param_activations = [None, "softplus"]
+            pass
         else:
             raise ValueError(f"Invalid likelihood {likelihood}")
 
@@ -77,13 +74,13 @@ class EmbeddingVAE(BaseModuleClass):
             "residual": True,
         }
         _encoder_kwargs.update(self.encoder_kwargs)
-        self.encoder = MLPMultiOutput(
-            n_in=self.n_vars,
-            n_out=self.n_latent,
-            n_out_params=2,
-            param_activations=[None, "softplus"],
-            **_encoder_kwargs,
-        )
+        # self.encoder = MLPMultiOutput(
+        #     n_in=self.n_vars,
+        #     n_out=self.n_latent,
+        #     n_out_params=2,
+        #     param_activations=[None, "softplus"],
+        #     **_encoder_kwargs,
+        # )
 
         _decoder_kwargs = {
             "n_hidden": 256,
@@ -95,13 +92,13 @@ class EmbeddingVAE(BaseModuleClass):
             "residual": True,
         }
         _decoder_kwargs.update(self.decoder_kwargs)
-        self.decoder = MLPMultiOutput(
-            n_in=self.n_latent,
-            n_out=self.n_vars,
-            n_out_params=decoder_n_out_params,
-            param_activations=decoder_param_activations,
-            **_decoder_kwargs,
-        )
+        # self.decoder = MLPMultiOutput(
+        #     n_in=self.n_latent,
+        #     n_out=self.n_vars,
+        #     n_out_params=decoder_n_out_params,
+        #     param_activations=decoder_param_activations,
+        #     **_decoder_kwargs,
+        # )
 
         self.covariates_encoder = nn.Identity()
         if self.categorical_covariates is not None:
