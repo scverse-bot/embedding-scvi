@@ -7,8 +7,6 @@
 [link-tests]: https://github.com/YosefLab/embedding-scvi/actions/workflows/test.yml
 [badge-docs]: https://img.shields.io/readthedocs/embedding-scvi
 
-A very interesting piece of code
-
 ## Getting started
 
 Please refer to the [documentation][link-docs]. In particular, the
@@ -33,7 +31,7 @@ pip install embedding-scvi
 1. Install the latest development version:
 
 ```bash
-pip install git+https://github.com/martinkim0/embedding-scvi.git@main
+pip install git+https://github.com/YosefLab/embedding-scvi.git@main
 ```
 
 ## Release notes
