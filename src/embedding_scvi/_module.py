@@ -59,7 +59,7 @@ class EmbeddingVAE(BaseModuleClass):
             "n_layers": 2,
             "bias": True,
             "norm": "layer",
-            "activation": "relu",
+            "activation": "gelu",
             "dropout_rate": 0.1,
             "residual": True,
         }
@@ -78,7 +78,7 @@ class EmbeddingVAE(BaseModuleClass):
             "n_layers": 2,
             "bias": True,
             "norm": "layer",
-            "activation": "relu",
+            "activation": "gelu",
             "dropout_rate": None,
             "residual": True,
         }

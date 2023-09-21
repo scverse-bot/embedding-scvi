@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from scvi.utils._exceptions import InvalidParameterError
 
 

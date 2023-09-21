@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import scvi
 
 from embedding_scvi import EmbeddingSCVI

@@ -32,6 +32,7 @@ class MLPBlock(nn.Module):
         * ``"leaky_relu"``: :class:`~torch.nn.LeakyReLU`
         * ``"softmax"``: :class:`~torch.nn.Softmax`
         * ``"softplus"``: :class:`~torch.nn.Softplus`
+        * ``"gelu"``: :class:`~torch.nn.GELU`
     dropout_rate
         Dropout rate. If ``None``, no dropout is used.
     residual
@@ -66,7 +67,11 @@ class MLPBlock(nn.Module):
         elif norm == "layer":
             self.norm = nn.LayerNorm(n_out, **self.norm_kwargs)
         elif norm is not None:
-            raise InvalidParameterError(param="norm", value=norm, valid=["batch", "layer", None])
+            raise InvalidParameterError(
+                param="norm",
+                value=norm,
+                valid=["batch", "layer", None],
+            )
 
         if activation == "relu":
             self.activation = nn.ReLU(**self.activation_kwargs)
@@ -76,17 +81,21 @@ class MLPBlock(nn.Module):
             self.activation = nn.Softmax(**self.activation_kwargs)
         elif activation == "softplus":
             self.activation = nn.Softplus(**self.activation_kwargs)
+        elif activation == "gelu":
+            self.activation = nn.GELU(**self.activation_kwargs)
         elif activation is not None:
             raise InvalidParameterError(
-                param="norm", value=norm, valid=["relu", "leaky_relu", "softmax", "softplus", None]
+                param="norm",
+                value=norm,
+                valid=["relu", "leaky_relu", "softmax", "softplus", "gelu", None],
             )
 
         if dropout_rate is not None:
             self.dropout = nn.Dropout(dropout_rate)
 
-        if residual and n_in != n_out:
+        if self.residual and n_in != n_out:
             self.residual_transform = nn.Linear(n_in, n_out, bias=False)
-        elif residual and n_in == n_out:
+        elif self.residual and n_in == n_out:
             self.residual_transform = nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -117,6 +126,7 @@ class MultiOutputLinear(nn.Module):
         * ``"leaky_relu"``: :class:`~torch.nn.LeakyReLU`
         * ``"softmax"``: :class:`~torch.nn.Softmax`
         * ``"softplus"``: :class:`~torch.nn.Softplus`
+        * ``"gelu"``: :class:`~torch.nn.GELU`
         * ``None``: No activation
     activation_kwargs
         List containing the keyword arguments to pass to the activation function
@@ -156,6 +166,42 @@ class MultiOutputLinear(nn.Module):
 
 
 class MLP(nn.Module):
+    """Multi-layer perceptron.
+
+    Parameters
+    ----------
+    n_in
+        Number of input features.
+    n_out
+        Number of output features.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of hidden layers.
+    bias
+        Whether to include a bias term in the linear layers.
+    norm
+        Type of normalization to use. One of the following:
+
+        * ``"batch"``: :class:`~torch.nn.BatchNorm1d`
+        * ``"layer"``: :class:`~torch.nn.LayerNorm`
+        * ``None``: No normalization
+    activation
+        Type of activation to use. One of the following:
+
+        * ``"relu"``: :class:`~torch.nn.ReLU`
+        * ``"leaky_relu"``: :class:`~torch.nn.LeakyReLU`
+        * ``"softmax"``: :class:`~torch.nn.Softmax`
+        * ``"softplus"``: :class:`~torch.nn.Softplus`
+        * ``"gelu"``: :class:`~torch.nn.GELU`
+    dropout_rate
+        Dropout rate. If ``None``, no dropout is used.
+    residual
+        Whether to use residual connections. If ``True`` and ``n_in != n_out``,
+        then a linear layer is used to project the input to the correct
+        dimensionality.
+    """
+
     def __init__(
         self,
         n_in: int,
@@ -178,9 +224,9 @@ class MLP(nn.Module):
 
         n_ins = [n_in] + [n_hidden for _ in range(n_layers - 1)]
         n_outs = [n_hidden for _ in range(n_layers - 1)] + [n_out]
-        blocks = []
+        self.blocks = nn.Sequential()
         for n_in, n_out in zip(n_ins, n_outs):
-            blocks.append(
+            self.blocks.append(
                 MLPBlock(
                     n_in=n_in,
                     n_out=n_out,
@@ -194,13 +240,62 @@ class MLP(nn.Module):
                 )
             )
 
-        self.blocks = nn.Sequential(*blocks)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.blocks(x)
 
 
 class MultiOutputMLP(nn.Module):
+    """Multi-output multi-layer perceptron.
+
+    Parameters
+    ----------
+    n_in
+        Number of input features.
+    n_out
+        Number of output features.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of hidden layers.
+    bias
+        Whether to include a bias term in the linear layers.
+    norm
+        Type of normalization to use. One of the following:
+
+        * ``"batch"``: :class:`~torch.nn.BatchNorm1d`
+        * ``"layer"``: :class:`~torch.nn.LayerNorm`
+        * ``None``: No normalization
+    activation
+        Type of activation to use. One of the following:
+
+        * ``"relu"``: :class:`~torch.nn.ReLU`
+        * ``"leaky_relu"``: :class:`~torch.nn.LeakyReLU`
+        * ``"softmax"``: :class:`~torch.nn.Softmax`
+        * ``"softplus"``: :class:`~torch.nn.Softplus`
+        * ``"gelu"``: :class:`~torch.nn.GELU`
+    dropout_rate
+        Dropout rate. If ``None``, no dropout is used.
+    residual
+        Whether to use residual connections. If ``True`` and ``n_in != n_out``,
+        then a linear layer is used to project the input to the correct
+        dimensionality.
+    n_out_params
+        Number of output parameters.
+    param_activations
+        List containing the type of activation to use for each output parameter.
+        One of the following:
+
+        * ``"relu"``: :class:`~torch.nn.ReLU`
+        * ``"leaky_relu"``: :class:`~torch.nn.LeakyReLU`
+        * ``"softmax"``: :class:`~torch.nn.Softmax`
+        * ``"softplus"``: :class:`~torch.nn.Softplus`
+        * ``"gelu"``: :class:`~torch.nn.GELU`
+        * ``None``: No activation
+    param_activation_kwargs
+        List containing the keyword arguments to pass to the activation function
+        for each output parameter.
+    """
+
     def __init__(
         self,
         n_in: int,
@@ -312,7 +407,15 @@ class ExtendableEmbedding(nn.Embedding):
 
 
 class ExtendableEmbeddingList(nn.Module):
-    """List of extendable embedding layers."""
+    """List of extendable embedding layers.
+
+    Parameters
+    ----------
+    num_embeddings
+        Number of embeddings for each embedding layer.
+    **kwargs
+        Keyword arguments passed into :class:`~embedding_scvi.ExtendableEmbedding`.
+    """
 
     def __init__(
         self,
@@ -322,7 +425,7 @@ class ExtendableEmbeddingList(nn.Module):
         super().__init__()
         self.num_embeddings = num_embeddings
 
-        self._embeddings = nn.ModuleList(
+        self.embeddings = nn.ModuleList(
             [
                 ExtendableEmbedding(
                     num_embeddings=c,
@@ -336,19 +439,19 @@ class ExtendableEmbeddingList(nn.Module):
         if isinstance(subset, int):
             subset = [subset]
         elif subset is None:
-            subset = list(range(len(self._embeddings)))
+            subset = list(range(len(self.embeddings)))
 
-        embeddings_subset = [self._embeddings[i] for i in subset]
+        embeddings_subset = [self.get_embedding_layer(i) for i in subset]
 
         return torch.cat(
             [embedding(x[:, i]).unsqueeze(0) for i, embedding in enumerate(embeddings_subset)],
         )
 
     def get_embedding_layer(self, index: int) -> nn.Embedding:
-        return self._embeddings[index]
+        return self.embeddings[index]
 
-    def set_embedding_layer(self, index: int, embedding: nn.Embedding):
-        self._embeddings[index] = embedding
+    def set_embedding_layer(self, index: int, embedding: nn.Embedding) -> None:
+        self.embeddings[index] = embedding
 
     def extend_embedding_layer(self, index: int, init: int | list[int], freeze_prev: bool = True) -> None:
         self.set_embedding_layer(

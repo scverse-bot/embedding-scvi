@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from anndata import AnnData
 from scvi.data.fields._arraylike_field import CategoricalJointField
