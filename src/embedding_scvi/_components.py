@@ -200,6 +200,52 @@ class MLP(nn.Module):
         return self.blocks(x)
 
 
+class MultiOutputMLP(nn.Module):
+    def __init__(
+        self,
+        n_in: int,
+        n_out: int,
+        n_hidden: int,
+        n_layers: int,
+        bias: bool = True,
+        norm: str | None = None,
+        norm_kwargs: dict | None = None,
+        activation: str | None = None,
+        activation_kwargs: dict | None = None,
+        dropout_rate: float | None = None,
+        residual: bool = False,
+        n_out_params: int = 1,
+        param_activations: list[str] | None = None,
+        param_activation_kwargs: list[dict] | None = None,
+    ):
+        super().__init__()
+        self.mlp = MLP(
+            n_in=n_in,
+            n_out=n_hidden,
+            n_hidden=n_hidden,
+            n_layers=n_layers,
+            bias=bias,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            activation=activation,
+            activation_kwargs=activation_kwargs,
+            dropout_rate=dropout_rate,
+            residual=residual,
+        )
+        self.multi_output_linear = MultiOutputLinear(
+            n_in=n_hidden,
+            n_out=n_out,
+            n_out_params=n_out_params,
+            activations=param_activations,
+            activation_kwargs=param_activation_kwargs,
+        )
+
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        h = self.mlp(x)
+        h = self.multi_output_linear(h)
+        return h
+
+
 class ExtendableEmbedding(nn.Embedding):
     """Extendable embedding layer."""
 

@@ -12,8 +12,9 @@ from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBi
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from torch import nn
 
-from ._components import ExtendableEmbeddingList
+from ._components import ExtendableEmbeddingList, MultiOutputMLP
 from ._constants import TENSORS_KEYS
+from ._utils import likelihood_to_dist_params
 
 
 @chex.dataclass
@@ -52,18 +53,7 @@ class EmbeddingVAE(BaseModuleClass):
         self.encoder_kwargs = encoder_kwargs or {}
         self.decoder_kwargs = decoder_kwargs or {}
 
-        if likelihood == "zinb":
-            # scale, r, dropout
-            pass
-        elif likelihood == "nb":
-            # mu, theta, scale
-            pass
-        elif likelihood == "poisson":
-            # mu, scale
-            pass
-        else:
-            raise ValueError(f"Invalid likelihood {likelihood}")
-
+        encoder_dist_params = likelihood_to_dist_params("normal")
         _encoder_kwargs = {
             "n_hidden": 256,
             "n_layers": 2,
@@ -74,14 +64,15 @@ class EmbeddingVAE(BaseModuleClass):
             "residual": True,
         }
         _encoder_kwargs.update(self.encoder_kwargs)
-        # self.encoder = MLPMultiOutput(
-        #     n_in=self.n_vars,
-        #     n_out=self.n_latent,
-        #     n_out_params=2,
-        #     param_activations=[None, "softplus"],
-        #     **_encoder_kwargs,
-        # )
+        self.encoder = MultiOutputMLP(
+            n_in=self.n_vars,
+            n_out=self.n_latent,
+            n_out_params=len(encoder_dist_params),
+            param_activations=list(encoder_dist_params.values()),
+            **_encoder_kwargs,
+        )
 
+        decoder_dist_parmas = likelihood_to_dist_params(self.likelihood)
         _decoder_kwargs = {
             "n_hidden": 256,
             "n_layers": 2,
@@ -92,13 +83,13 @@ class EmbeddingVAE(BaseModuleClass):
             "residual": True,
         }
         _decoder_kwargs.update(self.decoder_kwargs)
-        # self.decoder = MLPMultiOutput(
-        #     n_in=self.n_latent,
-        #     n_out=self.n_vars,
-        #     n_out_params=decoder_n_out_params,
-        #     param_activations=decoder_param_activations,
-        #     **_decoder_kwargs,
-        # )
+        self.decoder = MultiOutputMLP(
+            n_in=self.n_latent,
+            n_out=self.n_vars,
+            n_out_params=len(decoder_dist_parmas),
+            param_activations=list(decoder_dist_parmas.values()),
+            **_decoder_kwargs,
+        )
 
         self.covariates_encoder = nn.Identity()
         if self.categorical_covariates is not None:
@@ -233,7 +224,9 @@ class EmbeddingVAE(BaseModuleClass):
         # (n_obs, n_vars) -> (n_obs,)
         reconstruction_loss = -likelihood.log_prob(X).sum(dim=-1)
 
+        # (n_pbs,) + (n_obs,) -> (n_obs,)
         loss_unreduced = reconstruction_loss + weighted_kl_div
+        # (n_obs,) -> (1,)
         loss = loss_unreduced.mean()
 
         return LossOutput(
